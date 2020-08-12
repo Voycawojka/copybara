@@ -1,5 +1,3 @@
-const args = function* () { yield* Deno.args; }();
-
 const options = {
     input_file: "./src/template.html",
     output_path: "./out",
@@ -40,17 +38,18 @@ const cli_opts: CliOption[] = [
         params: 0,
         description: `Displays this list of commands`,
         action: ([]) => {
-            console.log(`\nname\t short\t params\t description`);
+            console.log("name\t short\t params\t description");
             for (const option of cli_opts) {
                 console.log(`--${option.name}\t -${option.short}\t ${option.params}\t ${option.description}\t`);
             }
-            console.log('\n');
             return false;
         },
     }
 ]
 
 function processCommandLineArgs(): boolean {
+    const args = function* () { yield* Deno.args; }();
+
     let arg = args.next();
     let execute = true;
     
@@ -68,8 +67,10 @@ function processCommandLineArgs(): boolean {
             params.push(param.value);
         }
 
-        const execute = option.action(params);
+        execute = option.action(params);
         if (!execute) break; 
+
+        arg = args.next();
     }
 
     return execute;
