@@ -36,27 +36,27 @@ The simplest usecase is to provide the same header and footer for every file. Th
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Awesome website</title>
+    <title>Capybara Fan Club</title>
 </head>
 <body>
     
-    <header>My awesome website</header>
+    <header>Welcome To The Capybara Lovers Community</header>
 
     <!-- !cb-wrap subpages -->
 
-    <footer>Made by me</footer>
+    <footer>Made with love</footer>
 
 </body>
 </html>
 ```
 
 In this case we specified the _subpages_ directory for the `cb-wrap` command. This is where the content files are located. 
-There may be any number of them. An example content file:
+There may be any number of them. A sample content file:
 
 ```html
-<h1>An article</h1>
-<h2>Why is my website awesome?</h2>
-<p>Because it is</p>
+<h1>The cultural influence of capybaras</h1>
+<h2>Currency</h2>
+<p>The image of a capybara can be seen on a 2 Pesos Uruguay coin.</p>
 ```
 
 The file structure looks like this:
@@ -66,7 +66,7 @@ template.html
 subpages/
 --- article.html
 --- about.html
---- contact.html
+--- adopt.html
 ```
 
 If you run the command:
@@ -82,7 +82,7 @@ template.html
 subpages/
 --- article.html
 --- about.html
---- contact.html
+--- adopt.html
 public/
 --- subpages/
 ------- article.html
@@ -98,17 +98,17 @@ The generated `public/subpages/article.html` file contains the following:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Awesome website</title>
+    <title>Capybara Fan Club</title>
 </head>
 <body>
     
-    <header>My awesome website</header>
+    <header>Welcome To The Capybara Lovers Community</header>
 
-    <h1>An article</h1>
-    <h2>Why is my website awesome?</h2>
-    <p>Because it is</p>
+    <h1>The cultural influence of capybaras</h1>
+    <h2>Currency</h2>
+    <p>The image of a capybara can be seen on a 2 Pesos Uruguay coin.</p>
 
-    <footer>Made by me</footer>
+    <footer>Made with love</footer>
 
 </body>
 </html>
