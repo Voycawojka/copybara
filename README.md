@@ -4,11 +4,11 @@ Simple HTML preprocessor for static sites. Made specificaly for a personal websi
 
 ## Install
 
-Copybara runs on [https://deno.land/](Deno).
+Copybara runs on [Deno](https://deno.land/).
 
 ```bash
 # install with deno install
-deno install --allow-read --allow-write [TODO put link]
+deno install --allow-read --allow-write https://deno.land/x/copybara/copybara.ts
 ```
 
 ## Run
