@@ -126,3 +126,4 @@ Option | Alias | Default | Description
 --input | -i | ./src/template.html | The file to start processing from (the main template)
 --out | -o | ./out | The folder in which to put the processed files
 --help | -h | n/a | Displays the list of commands
+--version | -v | n/a | Displays the used version

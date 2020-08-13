@@ -1,8 +1,8 @@
 import {Style, printLine, printTable} from "./src/cli_printer.ts";
 
 const options = {
-    input_file: "./src/template.html",
-    output_path: "./out",
+    inputFile: "./src/template.html",
+    outputPath: "./out",
 };
 
 interface CliOption {
@@ -13,14 +13,14 @@ interface CliOption {
     action: (params: string[]) => boolean,
 }
 
-const cli_opts: CliOption[] = [
+const cliOptions: CliOption[] = [
     {
         name: "input",
         short: "i",
         params: 1,
-        description: `The file to start processing from. Default: ${options.input_file}`,
+        description: `The file to start processing from. Default: ${options.inputFile}`,
         action: ([ file ]: string[]) => {
-            options.input_file = file;
+            options.inputFile = file;
             return true;
         },
     },
@@ -28,9 +28,9 @@ const cli_opts: CliOption[] = [
         name: "out",
         short: "o",
         params: 1,
-        description: `The folder in which to put the processed files. Default: ${options.output_path}`,
+        description: `The folder in which to put the processed files. Default: ${options.outputPath}`,
         action: ([ path ]: string[]) => {
-            options.output_path = path;
+            options.outputPath = path;
             return true;
         },
     },
@@ -42,7 +42,7 @@ const cli_opts: CliOption[] = [
         action: ([]) => {
             const rows = [
                 ["name", "alias", "params", "description"],
-                ...cli_opts.map(option => [
+                ...cliOptions.map(option => [
                     `--${option.name}`, 
                     `-${option.short}`, 
                     `${option.params}`, 
@@ -74,7 +74,7 @@ function processCommandLineArgs(): boolean {
     let execute = true;
     
     while (!arg.done) {
-        const option = cli_opts.find(opt => arg.value === `--${opt.name}` || arg.value === `-${opt.short}`);
+        const option = cliOptions.find(opt => arg.value === `--${opt.name}` || arg.value === `-${opt.short}`);
 
         if (!option) throw new Error(`Command line option "${arg.value}" is not supported. See "--help" for more information.`);
 
@@ -96,54 +96,100 @@ function processCommandLineArgs(): boolean {
     return execute;
 }
 
-interface ParsedFile {
-    path: string,
-    content: string
+interface ParamDec {
+    name: string,
+    command: string,
 }
 
-async function parseFile(decoder: TextDecoder, input_folder: string, path: string): Promise<ParsedFile[]> {
+interface ParamSetter {
+    param: string,
+    value: string,
+}
+
+interface ParsedFile {
+    path: string,
+    content: string,
+}
+
+async function parseFile(decoder: TextDecoder, inputFolder: string, path: string): Promise<ParsedFile[]> {
     printLine(`Processing ${path}...`);
 
     const file = decoder.decode(await Deno.readFile(path));
-    const wrap_re = /<!-- *!cb-wrap *(\S*) *-->/g;
-    const match_arr = wrap_re.exec(file);
-    const parsed_files: ParsedFile[] = [];
 
-    if (match_arr !== null) {
-        const [command, relative_path] = match_arr;
-        const absolute_path = `${input_folder}/${relative_path}`;
+    const paramDecs: ParamDec[] = [];
+    const paramRe = /<!-- *!cb-param *(\S+) *-->/g;
+    let matchArr = paramRe.exec(file);
 
-        printLine(`Reading files from ${absolute_path}`);
-        for (const dir_entry of Deno.readDirSync(absolute_path)) {
-            if (!dir_entry.isFile) continue;
+    while (matchArr !== null) {
+        const [command, paramName] = matchArr;
+        paramDecs.push({ name: paramName, command });
 
-            const wrapped_path = `${absolute_path}/${dir_entry.name}`;
+        matchArr = paramRe.exec(file);
+    }
 
-            printLine(`Wrapping ${wrapped_path}`);
-            const wrapped_content = decoder.decode(await Deno.readFile(wrapped_path));
+    const wrapRe = /<!-- *!cb-wrap *(\S+) *-->/g;
+    const parsedFiles: ParsedFile[] = [];
 
-            parsed_files.push({
-                path: `${relative_path}/${dir_entry.name}`,
-                content: file.slice(0, wrap_re.lastIndex - command.length) + wrapped_content + file.slice(wrap_re.lastIndex)
+    matchArr = wrapRe.exec(file);
+
+    if (matchArr !== null) {
+        const [command, relativePath] = matchArr;
+        const absolutePath = `${inputFolder}/${relativePath}`;
+
+        printLine(`Reading files from ${absolutePath}`);
+        for (const dirEntry of Deno.readDirSync(absolutePath)) {
+            if (!dirEntry.isFile) continue;
+
+            const wrappedPath = `${absolutePath}/${dirEntry.name}`;
+
+            printLine(`Wrapping ${wrappedPath}`);
+            const wrappedContent = decoder.decode(await Deno.readFile(wrappedPath));
+
+            const paramSetters: ParamSetter[] = [];
+            const paramSetRe = /<!-- *!cb-param *(\S+) +"(.*)" *-->/g;
+            let paramSetMatchArr = paramSetRe.exec(wrappedContent);
+
+            while(paramSetMatchArr !== null) {
+                const [, param, value] = paramSetMatchArr;
+                paramSetters.push({ param, value });
+
+                paramSetMatchArr = paramSetRe.exec(wrappedContent);
+            }
+
+            let content = file.slice(0, wrapRe.lastIndex - command.length) + wrappedContent + file.slice(wrapRe.lastIndex);
+            for (const paramSetter of paramSetters) {
+                const paramDec = paramDecs.find(dec => dec.name === paramSetter.param);
+
+                if (!paramDec) {
+                    printLine(`Warning: parameter '${paramSetter.param}' is set in the content file but not declared in the template.`, Style.warning);
+                    continue;
+                }
+
+                content = content.replace(paramDec.command, paramSetter.value);
+            }
+
+            parsedFiles.push({
+                path: `${relativePath}/${dirEntry.name}`,
+                content,
             });
         }
     }
 
-    return Promise.resolve(parsed_files);
+    return Promise.resolve(parsedFiles);
 }
 
 if (import.meta.main) {
     if (processCommandLineArgs()) {
-        const input_folder = options.input_file.substring(0, options.input_file.lastIndexOf("/"));
+        const inputFolder = options.inputFile.substring(0, options.inputFile.lastIndexOf("/"));
         const decoder = new TextDecoder("utf-8");
 
-        for (const parsed_file of await parseFile(decoder, input_folder, options.input_file)) {
-            const dir_path = `${options.output_path}/${parsed_file.path.slice(0, parsed_file.path.lastIndexOf("/"))}`;
+        for (const parsedFile of await parseFile(decoder, inputFolder, options.inputFile)) {
+            const dirPath = `${options.outputPath}/${parsedFile.path.slice(0, parsedFile.path.lastIndexOf("/"))}`;
 
-            printLine(`Saving ${options.output_path}/${parsed_file.path}...`);
+            printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);
 
-            await Deno.mkdir(dir_path, { recursive: true });
-            Deno.writeTextFile(`${options.output_path}/${parsed_file.path}`, parsed_file.content, { create: true });
+            await Deno.mkdir(dirPath, { recursive: true });
+            Deno.writeTextFile(`${options.outputPath}/${parsedFile.path}`, parsedFile.content, { create: true });
         }
 
         printLine("Done!", Style.success);
