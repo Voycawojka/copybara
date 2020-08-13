@@ -1,3 +1,5 @@
+import {Style, printLine, printTable} from "./src/cli_printer.ts";
+
 const options = {
     input_file: "./src/template.html",
     output_path: "./out",
@@ -38,12 +40,34 @@ const cli_opts: CliOption[] = [
         params: 0,
         description: `Displays this list of commands`,
         action: ([]) => {
-            console.log("name\t short\t params\t description");
-            for (const option of cli_opts) {
-                console.log(`--${option.name}\t -${option.short}\t ${option.params}\t ${option.description}\t`);
-            }
+            const rows = [
+                ["name", "alias", "params", "description"],
+                ...cli_opts.map(option => [
+                    `--${option.name}`, 
+                    `-${option.short}`, 
+                    `${option.params}`, 
+                    option.description
+                ]),
+            ];
+            printLine("");
+            printTable(rows);
+
+            // printLine("name\t short\t params\t description");
+            // for (const option of cli_opts) {
+            //     printLine(`--${option.name}\t -${option.short}\t ${option.params}\t ${option.description}\t`);
+            // }
             return false;
         },
+    },
+    {
+        name: "version",
+        short: "v",
+        params: 0,
+        description: 'Displays the version of the used build',
+        action: ([]) => {
+            printLine("0.0.2");
+            return false;
+        }
     }
 ]
 
@@ -82,7 +106,7 @@ interface ParsedFile {
 }
 
 async function parseFile(decoder: TextDecoder, input_folder: string, path: string): Promise<ParsedFile[]> {
-    console.log(`Processing ${path}...`);
+    printLine(`Processing ${path}...`);
 
     const file = decoder.decode(await Deno.readFile(path));
     const wrap_re = /<!-- *!cb-wrap *(\S*) *-->/g;
@@ -93,12 +117,13 @@ async function parseFile(decoder: TextDecoder, input_folder: string, path: strin
         const [command, relative_path] = match_arr;
         const absolute_path = `${input_folder}/${relative_path}`;
 
-        for (const dir_entry of Deno.readDirSync("./src/data")) {
+        printLine(`Reading files from ${absolute_path}`);
+        for (const dir_entry of Deno.readDirSync(absolute_path)) {
             if (!dir_entry.isFile) continue;
 
             const wrapped_path = `${absolute_path}/${dir_entry.name}`;
 
-            console.log(`Wrapping ${wrapped_path}`);
+            printLine(`Wrapping ${wrapped_path}`);
             const wrapped_content = decoder.decode(await Deno.readFile(wrapped_path));
 
             parsed_files.push({
@@ -112,17 +137,19 @@ async function parseFile(decoder: TextDecoder, input_folder: string, path: strin
 }
 
 if (import.meta.main) {
-    const input_folder = options.input_file.substring(0, options.input_file.lastIndexOf("/"));
-    const decoder = new TextDecoder("utf-8");
-
     if (processCommandLineArgs()) {
+        const input_folder = options.input_file.substring(0, options.input_file.lastIndexOf("/"));
+        const decoder = new TextDecoder("utf-8");
+
         for (const parsed_file of await parseFile(decoder, input_folder, options.input_file)) {
             const dir_path = `${options.output_path}/${parsed_file.path.slice(0, parsed_file.path.lastIndexOf("/"))}`;
 
-            console.log(`Saving ${options.output_path}/${parsed_file.path}...`);
+            printLine(`Saving ${options.output_path}/${parsed_file.path}...`);
 
             await Deno.mkdir(dir_path, { recursive: true });
             Deno.writeTextFile(`${options.output_path}/${parsed_file.path}`, parsed_file.content, { create: true });
         }
+
+        printLine("Done!", Style.success);
     }
 }
