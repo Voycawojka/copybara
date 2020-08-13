@@ -36,7 +36,7 @@ The simplest usecase is to provide the same header and footer for every file. Th
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Capybara Fan Club</title>
+    <title><!-- !cb-param title --> - Capybara Fan Club</title>
 </head>
 <body>
     
@@ -50,14 +50,18 @@ The simplest usecase is to provide the same header and footer for every file. Th
 </html>
 ```
 
-In this case we specified the _subpages_ directory for the `cb-wrap` command. This is where the content files are located. 
+In this case we specified a `title` parameter (the word "title" is arbitrary) and the  `subpages` directory for the `cb-wrap` command. 
+This directory is where the content files are located. 
 There may be any number of them. A sample content file:
 
 ```html
+<!-- !cb-param title "Fun Facts" -->
 <h1>The cultural influence of capybaras</h1>
 <h2>Currency</h2>
 <p>The image of a capybara can be seen on a 2 Pesos Uruguay coin.</p>
 ```
+
+This file sets the `title` parameter for itself as _"Fun Facts"_. The command can be placed anywhere in the file.
 
 The file structure looks like this:
 
@@ -98,12 +102,13 @@ The generated `public/subpages/article.html` file contains the following:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Capybara Fan Club</title>
+    <title>Fun Facts - Capybara Fan Club</title>
 </head>
 <body>
     
     <header>Welcome To The Capybara Lovers Community</header>
 
+    <!-- !cb-param title "Fun Facts" -->
     <h1>The cultural influence of capybaras</h1>
     <h2>Currency</h2>
     <p>The image of a capybara can be seen on a 2 Pesos Uruguay coin.</p>
@@ -114,7 +119,7 @@ The generated `public/subpages/article.html` file contains the following:
 </html>
 ```
 
-The `subpages/article.html` file has been wrapped by `template.html` in place of the `<!-- !cb-wrap subpages -->` command. 
+The `subpages/article.html` file has been wrapped by `template.html` in place of the `<!-- !cb-wrap subpages -->` command. Also, the `title` parameter declaration has been replaced by the `title` value set in the content file.
 The same has happened to all other files inside the `subpages` directory.
 
 ## Command line
@@ -125,5 +130,6 @@ Option | Alias | Default | Description
 --- | --- | --- | ---
 --input | -i | ./src/template.html | The file to start processing from (the main template)
 --out | -o | ./out | The folder in which to put the processed files
+--verbose | n/a | n/a | Logs more detailed information. Helpful for debugging
 --help | -h | n/a | Displays the list of commands
 --version | -v | n/a | Displays the used version

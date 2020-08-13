@@ -3,11 +3,12 @@ import {Style, printLine, printTable} from "./src/cli_printer.ts";
 const options = {
     inputFile: "./src/template.html",
     outputPath: "./out",
+    verbose: false,
 };
 
 interface CliOption {
     name: string,
-    short: string,
+    short: string | null,
     params: number,
     description: string,
     action: (params: string[]) => boolean,
@@ -35,6 +36,16 @@ const cliOptions: CliOption[] = [
         },
     },
     {
+        name: "verbose",
+        short: null,
+        params: 0,
+        description: "Causes copybara to log more information",
+        action: ([]) => {
+            options.verbose = true;
+            return true;
+        },
+    },
+    {
         name: "help",
         short: "h",
         params: 0,
@@ -44,7 +55,7 @@ const cliOptions: CliOption[] = [
                 ["name", "alias", "params", "description"],
                 ...cliOptions.map(option => [
                     `--${option.name}`, 
-                    `-${option.short}`, 
+                    !!option.short ? `-${option.short}` : "n/a", 
                     `${option.params}`, 
                     option.description
                 ]),
@@ -112,7 +123,7 @@ interface ParsedFile {
 }
 
 async function parseFile(decoder: TextDecoder, inputFolder: string, path: string): Promise<ParsedFile[]> {
-    printLine(`Processing ${path}...`);
+    options.verbose && printLine(`Processing ${path}...`);
 
     const file = decoder.decode(await Deno.readFile(path));
 
@@ -136,13 +147,13 @@ async function parseFile(decoder: TextDecoder, inputFolder: string, path: string
         const [command, relativePath] = matchArr;
         const absolutePath = `${inputFolder}/${relativePath}`;
 
-        printLine(`Reading files from ${absolutePath}`);
+        options.verbose && printLine(`Reading files from ${absolutePath}`);
         for (const dirEntry of Deno.readDirSync(absolutePath)) {
             if (!dirEntry.isFile) continue;
 
             const wrappedPath = `${absolutePath}/${dirEntry.name}`;
 
-            printLine(`Wrapping ${wrappedPath}`);
+            options.verbose && printLine(`Wrapping ${wrappedPath}`);
             const wrappedContent = decoder.decode(await Deno.readFile(wrappedPath));
 
             const paramSetters: ParamSetter[] = [];
@@ -161,7 +172,7 @@ async function parseFile(decoder: TextDecoder, inputFolder: string, path: string
                 const paramDec = paramDecs.find(dec => dec.name === paramSetter.param);
 
                 if (!paramDec) {
-                    printLine(`Warning: parameter '${paramSetter.param}' is set in the content file but not declared in the template.`, Style.warning);
+                    printLine(`Warning: parameter '${paramSetter.param}' is set in the content file (${wrappedPath}) but not declared in the template (${path}).`, Style.warning);
                     continue;
                 }
 
@@ -186,7 +197,7 @@ if (import.meta.main) {
         for (const parsedFile of await parseFile(decoder, inputFolder, options.inputFile)) {
             const dirPath = `${options.outputPath}/${parsedFile.path.slice(0, parsedFile.path.lastIndexOf("/"))}`;
 
-            printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);
+            options.verbose && printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);
 
             await Deno.mkdir(dirPath, { recursive: true });
             Deno.writeTextFile(`${options.outputPath}/${parsedFile.path}`, parsedFile.content, { create: true });
