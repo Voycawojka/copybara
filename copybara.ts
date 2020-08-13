@@ -1,6 +1,7 @@
 import {Style, printLine, printTable} from "./src/cli_printer.ts";
 import { crawl, crawlSingle } from "./src/content_crawler.ts";
 import { handleErrors, CopybaraError } from "./src/error_handler.ts";
+import { getFilesInDir, getFileContent } from "./src/fs_accessor.ts";
 
 const options = {
     inputFile: "./src/template.html",
@@ -124,10 +125,10 @@ interface ParsedFile {
     content: string,
 }
 
-async function parseFile(decoder: TextDecoder, inputFolder: string, path: string): Promise<ParsedFile[]> {
+async function parseFile(inputFolder: string, path: string): Promise<ParsedFile[]> {
     options.verbose && printLine(`Processing ${path}...`);
 
-    const file = decoder.decode(await Deno.readFile(path));
+    const file = getFileContent(path);
 
     const paramDecs: ParamDec[] = crawl(file, /<!-- *!cb-param *(\S+) *-->/g)
         .map(({ command, groups }) => ({ name: groups[0], command }));
@@ -140,13 +141,11 @@ async function parseFile(decoder: TextDecoder, inputFolder: string, path: string
         const absolutePath = `${inputFolder}/${relativePath}`;
 
         options.verbose && printLine(`Reading files from ${absolutePath}`);
-        for (const dirEntry of Deno.readDirSync(absolutePath)) {
-            if (!dirEntry.isFile) continue;
-
-            const wrappedPath = `${absolutePath}/${dirEntry.name}`;
+        for (const contentFile of getFilesInDir(absolutePath)) {
+            const wrappedPath = `${absolutePath}/${contentFile}`;
 
             options.verbose && printLine(`Wrapping ${wrappedPath}`);
-            const wrappedContent = decoder.decode(await Deno.readFile(wrappedPath));
+            const wrappedContent = getFileContent(wrappedPath);
 
             const paramSetters: ParamSetter[] = crawl(wrappedContent, /<!-- *!cb-param *(\S+) +"(.*)" *-->/g)
                 .map(({ groups }) => ({ param: groups[0], value: groups[1] }));
@@ -164,7 +163,7 @@ async function parseFile(decoder: TextDecoder, inputFolder: string, path: string
             }
 
             parsedFiles.push({
-                path: `${relativePath}/${dirEntry.name}`,
+                path: `${relativePath}/${contentFile}`,
                 content,
             });
         }
@@ -176,9 +175,8 @@ async function parseFile(decoder: TextDecoder, inputFolder: string, path: string
 async function run(): Promise<void> {
     if (processCommandLineArgs()) {
         const inputFolder = options.inputFile.substring(0, options.inputFile.lastIndexOf("/"));
-        const decoder = new TextDecoder("utf-8");
 
-        for (const parsedFile of await parseFile(decoder, inputFolder, options.inputFile)) {
+        for (const parsedFile of await parseFile(inputFolder, options.inputFile)) {
             const dirPath = `${options.outputPath}/${parsedFile.path.slice(0, parsedFile.path.lastIndexOf("/"))}`;
 
             options.verbose && printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);
