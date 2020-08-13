@@ -72,7 +72,7 @@ const cliOptions: CliOption[] = [
         params: 0,
         description: 'Displays the version of the used build',
         action: ([]) => {
-            printLine("0.0.2");
+            printLine("0.0.3");
             return false;
         }
     }
@@ -169,14 +169,14 @@ async function parseFile(decoder: TextDecoder, inputFolder: string, path: string
 
             let content = file.slice(0, wrapRe.lastIndex - command.length) + wrappedContent + file.slice(wrapRe.lastIndex);
             for (const paramSetter of paramSetters) {
-                const paramDec = paramDecs.find(dec => dec.name === paramSetter.param);
+                const thisParamDecs = paramDecs.filter(dec => dec.name === paramSetter.param);
 
-                if (!paramDec) {
+                if (thisParamDecs.length === 0) {
                     printLine(`Warning: parameter '${paramSetter.param}' is set in the content file (${wrappedPath}) but not declared in the template (${path}).`, Style.warning);
                     continue;
                 }
 
-                content = content.replace(paramDec.command, paramSetter.value);
+                thisParamDecs.forEach(paramDec => content = content.replace(paramDec.command, paramSetter.value));
             }
 
             parsedFiles.push({

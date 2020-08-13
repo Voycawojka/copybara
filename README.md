@@ -15,13 +15,13 @@ deno install --allow-read --allow-write https://deno.land/x/copybara/copybara.ts
 
 ```bash
 # run with default arguments
-copybara
+copybara.cmd
 
 # specify input and output
-copybara -i src/template.html -o build/
+copybara.cmd -i src/template.html -o build/
 
 # display help
-copybara -h
+copybara.cmd -h
 ```
 
 ## Use
@@ -76,7 +76,7 @@ subpages/
 If you run the command:
 
 ```bash
-copybara -i template.html -o public
+copybara.cmd -i template.html -o public
 ```
 
 It will create the `public` directory so that the final structure looks like this:
@@ -91,7 +91,7 @@ public/
 --- subpages/
 ------- article.html
 ------- about.html
-------- contact.html
+------- adopt.html
 ```
 
 The generated `public/subpages/article.html` file contains the following:
