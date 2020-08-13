@@ -1,4 +1,5 @@
 import {Style, printLine, printTable} from "./src/cli_printer.ts";
+import { crawl, crawlSingle } from "./src/content_crawler.ts";
 
 const options = {
     inputFile: "./src/template.html",
@@ -127,24 +128,14 @@ async function parseFile(decoder: TextDecoder, inputFolder: string, path: string
 
     const file = decoder.decode(await Deno.readFile(path));
 
-    const paramDecs: ParamDec[] = [];
-    const paramRe = /<!-- *!cb-param *(\S+) *-->/g;
-    let matchArr = paramRe.exec(file);
+    const paramDecs: ParamDec[] = crawl(file, /<!-- *!cb-param *(\S+) *-->/g)
+        .map(({ command, groups }) => ({ name: groups[0], command }));
 
-    while (matchArr !== null) {
-        const [command, paramName] = matchArr;
-        paramDecs.push({ name: paramName, command });
-
-        matchArr = paramRe.exec(file);
-    }
-
-    const wrapRe = /<!-- *!cb-wrap *(\S+) *-->/g;
     const parsedFiles: ParsedFile[] = [];
+    const wrapCommand = crawlSingle(file, /<!-- *!cb-wrap *(\S+) *-->/g);
 
-    matchArr = wrapRe.exec(file);
-
-    if (matchArr !== null) {
-        const [command, relativePath] = matchArr;
+    if (wrapCommand) {
+        const relativePath = wrapCommand.groups[0];
         const absolutePath = `${inputFolder}/${relativePath}`;
 
         options.verbose && printLine(`Reading files from ${absolutePath}`);
@@ -156,18 +147,10 @@ async function parseFile(decoder: TextDecoder, inputFolder: string, path: string
             options.verbose && printLine(`Wrapping ${wrappedPath}`);
             const wrappedContent = decoder.decode(await Deno.readFile(wrappedPath));
 
-            const paramSetters: ParamSetter[] = [];
-            const paramSetRe = /<!-- *!cb-param *(\S+) +"(.*)" *-->/g;
-            let paramSetMatchArr = paramSetRe.exec(wrappedContent);
+            const paramSetters: ParamSetter[] = crawl(wrappedContent, /<!-- *!cb-param *(\S+) +"(.*)" *-->/g)
+                .map(({ groups }) => ({ param: groups[0], value: groups[1] }));
 
-            while(paramSetMatchArr !== null) {
-                const [, param, value] = paramSetMatchArr;
-                paramSetters.push({ param, value });
-
-                paramSetMatchArr = paramSetRe.exec(wrappedContent);
-            }
-
-            let content = file.slice(0, wrapRe.lastIndex - command.length) + wrappedContent + file.slice(wrapRe.lastIndex);
+            let content = file.slice(0, wrapCommand.indexBefore) + wrappedContent + file.slice(wrapCommand.indexAfter);
             for (const paramSetter of paramSetters) {
                 const thisParamDecs = paramDecs.filter(dec => dec.name === paramSetter.param);
 
