@@ -52,10 +52,6 @@ const cli_opts: CliOption[] = [
             printLine("");
             printTable(rows);
 
-            // printLine("name\t short\t params\t description");
-            // for (const option of cli_opts) {
-            //     printLine(`--${option.name}\t -${option.short}\t ${option.params}\t ${option.description}\t`);
-            // }
             return false;
         },
     },
@@ -111,7 +107,7 @@ async function parseFile(decoder: TextDecoder, input_folder: string, path: strin
     const file = decoder.decode(await Deno.readFile(path));
     const wrap_re = /<!-- *!cb-wrap *(\S*) *-->/g;
     const match_arr = wrap_re.exec(file);
-    let parsed_files: ParsedFile[] = [];
+    const parsed_files: ParsedFile[] = [];
 
     if (match_arr !== null) {
         const [command, relative_path] = match_arr;
