@@ -1,5 +1,6 @@
 import {Style, printLine, printTable} from "./src/cli_printer.ts";
 import { crawl, crawlSingle } from "./src/content_crawler.ts";
+import { handleErrors, CopybaraError } from "./src/error_handler.ts";
 
 const options = {
     inputFile: "./src/template.html",
@@ -88,13 +89,13 @@ function processCommandLineArgs(): boolean {
     while (!arg.done) {
         const option = cliOptions.find(opt => arg.value === `--${opt.name}` || arg.value === `-${opt.short}`);
 
-        if (!option) throw new Error(`Command line option "${arg.value}" is not supported. See "--help" for more information.`);
+        if (!option) throw new CopybaraError(`Command line option "${arg.value}" is not supported. See "--help" for more information.`);
 
         const params: string[] = [];
         for (let i = 0; i < option.params; i ++) {
             const param = args.next()
 
-            if (param.done || param.value.startsWith("-")) throw new Error(`Option "${arg.value}" expects ${option.params} parameters but got ${i}`);
+            if (param.done || param.value.startsWith("-")) throw new CopybaraError(`Option "${arg.value}" expects ${option.params} parameters but got ${i}`);
 
             params.push(param.value);
         }
@@ -172,7 +173,7 @@ async function parseFile(decoder: TextDecoder, inputFolder: string, path: string
     return Promise.resolve(parsedFiles);
 }
 
-if (import.meta.main) {
+async function run(): Promise<void> {
     if (processCommandLineArgs()) {
         const inputFolder = options.inputFile.substring(0, options.inputFile.lastIndexOf("/"));
         const decoder = new TextDecoder("utf-8");
@@ -188,4 +189,8 @@ if (import.meta.main) {
 
         printLine("Done!", Style.success);
     }
+}
+
+if (import.meta.main) {
+    handleErrors(run);
 }
