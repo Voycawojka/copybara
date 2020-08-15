@@ -3,13 +3,13 @@
 Simple HTML preprocessor for static sites. Made specificaly for a personal website of mine.
 
 #### Table of Contents
-[Quick start](#quick%20start)
-- [Install](#install)
-- [Run](#run)
-- [Use](#use)
-[Options](#options)
-- [Configuration](#configuration)
-- [Command line](#comamndW%20line)
+* [Quick start](#quick%20start)
+  * [Install](#install)
+  * [Run](#run)
+  * [Use](#use)
+* [Options](#options)
+  * [Configuration](#configuration)
+  * [Command line](#comamndW%20line)
 
 ## Quick start
 
@@ -149,22 +149,23 @@ The configuration is stored in an [INI](https://en.wikipedia.org/wiki/INI_file) 
 An example config file:
 
 ```ini
-input=./main.html
-out=./dist
+inputFile=./main.html
+outputPath=./dist
 verbose=yes ; in case of flags (boolean options) setting them to any value will set them to 'true'
 ```
 
-All configuration options match the command line options listed in the table below. Because of that no configuration file is needed and all options can be passed via the command line.
+All configuration options have command line counterpats (listed in the table below). 
+Because of that no configuration file is needed and all options can be passed via the command line.
 
 ### Command line
 
-The following command line options are available:
+The following command line options are available. The _INI_ column specifies the configuration file counterparts.
 
-Option | Alias | Default | Description
---- | --- | --- | ---
---config | -c | ./copybara.ini | The configuration file
---input | -i | ./src/template.html | The file to start processing from (the main template)
---out | -o | ./out | The folder in which to put the processed files
---verbose | n/a | n/a | Logs more detailed information. Helpful for debugging
---help | -h | n/a | Displays the list of commands
---version | -v | n/a | Displays the used version
+Option | Alias | INI | Default | Description
+--- | --- | --- | --- | ---
+--config | -c | n/a | ./copybara.ini | The configuration file
+--input | -i | inputFile | ./src/template.html | The file to start processing from (the main template)
+--out | -o | outputPath | ./out | The folder in which to put the processed files
+--verbose | n/a | verbose | n/a | Logs more detailed information. Helpful for debugging
+--help | -h | n/a | n/a | Displays the list of commands
+--version | -v | n/a | n/a | Displays the used version

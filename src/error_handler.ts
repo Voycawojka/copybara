@@ -3,8 +3,7 @@ import { printLine, Style } from "./cli_printer.ts";
 export class CopybaraError extends Error {
     constructor(message: string) {
         super(message);
-
-        this.name = "CopybaraError";
+        this.name = this.constructor.name;
     }
 }
 

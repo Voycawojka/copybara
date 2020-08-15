@@ -1,7 +1,7 @@
 import { Style, printLine, printWarning, printTable } from "./src/cli_printer.ts";
 import { crawl, crawlSingle } from "./src/content_crawler.ts";
-import { handleErrors, CopybaraError } from "./src/error_handler.ts";
-import { getFilesInDir, getFileContent } from "./src/fs_accessor.ts";
+import { handleErrors } from "./src/error_handler.ts";
+import { getFilesInDir, getFileContent, CopybaraFsAccessError } from "./src/fs_accessor.ts";
 import { readConfigFile } from "./src/conf_reader.ts";
 import { processCliArgs, CliOption } from "./src/args_parser.ts";
 import { Options } from "./src/options.ts";
@@ -151,10 +151,16 @@ async function run(): Promise<void> {
     const supportedFlags = getSupportedFlags(options);
 
     if (processCliArgs(supportedFlags)) {
-        const configOptions = readConfigFile(options.configFile);
-        options.overrideDefaultsWithConfig(configOptions);
-
-        // TODO don't halt when config file doesn't exist if it's not specified
+        try {
+            const configOptions = readConfigFile(options.configFile);
+            options.overrideDefaultsWithConfig(configOptions);
+        } catch (error) {
+            if (error instanceof CopybaraFsAccessError) {
+                printLine(`Configuration file '${error.path}' not found or cannot be accessed. Ignoring it.`);
+            } else {
+                throw error;
+            }
+        }
 
         const inputFolder = options.inputFile.substring(0, options.inputFile.lastIndexOf("/"));
 
