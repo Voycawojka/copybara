@@ -1,113 +1,87 @@
-import {Style, printLine, printTable} from "./src/cli_printer.ts";
+import { Style, printLine, printWarning, printTable } from "./src/cli_printer.ts";
 import { crawl, crawlSingle } from "./src/content_crawler.ts";
 import { handleErrors, CopybaraError } from "./src/error_handler.ts";
 import { getFilesInDir, getFileContent } from "./src/fs_accessor.ts";
+import { readConfigFile } from "./src/conf_reader.ts";
+import { processCliArgs, CliOption } from "./src/args_parser.ts";
+import { Options } from "./src/options.ts";
 
-const options = {
-    inputFile: "./src/template.html",
-    outputPath: "./out",
-    verbose: false,
-};
-
-interface CliOption {
-    name: string,
-    short: string | null,
-    params: number,
-    description: string,
-    action: (params: string[]) => boolean,
-}
-
-const cliOptions: CliOption[] = [
-    {
-        name: "input",
-        short: "i",
-        params: 1,
-        description: `The file to start processing from. Default: ${options.inputFile}`,
-        action: ([ file ]: string[]) => {
-            options.inputFile = file;
-            return true;
+function getSupportedFlags(options: Options): CliOption[] {
+    const supported = [
+        {
+            name: "config",
+            short: "c",
+            params: 1,
+            description: `The configuration file. Any specified CLI options will override the config file counterparts. Default: ${options.configFile}`,
+            action: ([ file ]: string[]) => {
+                options.configFile = file;
+                return true;
+            },
         },
-    },
-    {
-        name: "out",
-        short: "o",
-        params: 1,
-        description: `The folder in which to put the processed files. Default: ${options.outputPath}`,
-        action: ([ path ]: string[]) => {
-            options.outputPath = path;
-            return true;
+        {
+            name: "input",
+            short: "i",
+            params: 1,
+            description: `The file to start processing from. Default: ${options.inputFile}`,
+            action: ([ file ]: string[]) => {
+                options.inputFile = file;
+                return true;
+            },
         },
-    },
-    {
-        name: "verbose",
-        short: null,
-        params: 0,
-        description: "Causes copybara to log more information",
-        action: ([]) => {
-            options.verbose = true;
-            return true;
+        {
+            name: "out",
+            short: "o",
+            params: 1,
+            description: `The folder in which to put the processed files. Default: ${options.outputPath}`,
+            action: ([ path ]: string[]) => {
+                options.outputPath = path;
+                return true;
+            },
         },
-    },
-    {
-        name: "help",
-        short: "h",
-        params: 0,
-        description: `Displays this list of commands`,
-        action: ([]) => {
-            const rows = [
-                ["name", "alias", "params", "description"],
-                ...cliOptions.map(option => [
-                    `--${option.name}`, 
-                    !!option.short ? `-${option.short}` : "n/a", 
-                    `${option.params}`, 
-                    option.description
-                ]),
-            ];
-            printLine("");
-            printTable(rows);
-
-            return false;
+        {
+            name: "verbose",
+            short: null,
+            params: 0,
+            description: "Causes copybara to log more information",
+            action: ([]) => {
+                options.verbose = true;
+                return true;
+            },
         },
-    },
-    {
-        name: "version",
-        short: "v",
-        params: 0,
-        description: 'Displays the version of the used build',
-        action: ([]) => {
-            printLine("0.0.3");
-            return false;
-        }
-    }
-]
-
-function processCommandLineArgs(): boolean {
-    const args = function* () { yield* Deno.args; }();
-
-    let arg = args.next();
-    let execute = true;
+        {
+            name: "help",
+            short: "h",
+            params: 0,
+            description: `Displays this list of commands`,
+            action: ([]) => {
+                const rows = [
+                    ["name", "alias", "params", "description"],
+                    ...supported.map(option => [
+                        `--${option.name}`, 
+                        !!option.short ? `-${option.short}` : "n/a", 
+                        `${option.params}`, 
+                        option.description
+                    ]),
+                ];
+                printLine("");
+                printTable(rows);
     
-    while (!arg.done) {
-        const option = cliOptions.find(opt => arg.value === `--${opt.name}` || arg.value === `-${opt.short}`);
-
-        if (!option) throw new CopybaraError(`Command line option "${arg.value}" is not supported. See "--help" for more information.`);
-
-        const params: string[] = [];
-        for (let i = 0; i < option.params; i ++) {
-            const param = args.next()
-
-            if (param.done || param.value.startsWith("-")) throw new CopybaraError(`Option "${arg.value}" expects ${option.params} parameters but got ${i}`);
-
-            params.push(param.value);
+                return false;
+            },
+        },
+        {
+            name: "version",
+            short: "v",
+            params: 0,
+            description: 'Displays the version of the used build',
+            action: ([]) => {
+                printLine("0.0.3");
+                return false;
+            }
         }
+    ];
 
-        execute = option.action(params);
-        if (!execute) break; 
-
-        arg = args.next();
-    }
-
-    return execute;
+    return supported;
 }
 
 interface ParamDec {
@@ -125,7 +99,7 @@ interface ParsedFile {
     content: string,
 }
 
-async function parseFile(inputFolder: string, path: string): Promise<ParsedFile[]> {
+async function parseFile(inputFolder: string, path: string, options: Options): Promise<ParsedFile[]> {
     options.verbose && printLine(`Processing ${path}...`);
 
     const file = getFileContent(path);
@@ -155,7 +129,7 @@ async function parseFile(inputFolder: string, path: string): Promise<ParsedFile[
                 const thisParamDecs = paramDecs.filter(dec => dec.name === paramSetter.param);
 
                 if (thisParamDecs.length === 0) {
-                    printLine(`Warning: parameter '${paramSetter.param}' is set in the content file (${wrappedPath}) but not declared in the template (${path}).`, Style.warning);
+                    printWarning(`parameter '${paramSetter.param}' is set in the content file (${wrappedPath}) but not declared in the template (${path}).`);
                     continue;
                 }
 
@@ -173,10 +147,18 @@ async function parseFile(inputFolder: string, path: string): Promise<ParsedFile[
 }
 
 async function run(): Promise<void> {
-    if (processCommandLineArgs()) {
+    const options = new Options();
+    const supportedFlags = getSupportedFlags(options);
+
+    if (processCliArgs(supportedFlags)) {
+        const configOptions = readConfigFile(options.configFile);
+        options.overrideDefaultsWithConfig(configOptions);
+
+        // TODO don't halt when config file doesn't exist if it's not specified
+
         const inputFolder = options.inputFile.substring(0, options.inputFile.lastIndexOf("/"));
 
-        for (const parsedFile of await parseFile(inputFolder, options.inputFile)) {
+        for (const parsedFile of await parseFile(inputFolder, options.inputFile, options)) {
             const dirPath = `${options.outputPath}/${parsedFile.path.slice(0, parsedFile.path.lastIndexOf("/"))}`;
 
             options.verbose && printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);

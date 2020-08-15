@@ -11,6 +11,10 @@ export function printLine(msg: string, style: Style = Style.normal) {
     console.log(`${color}${msg}\u001b[0m`);
 }
 
+export function printWarning(msg: string) {
+    printLine(`Warning: ${msg}`, Style.warning);
+}
+
 export function printTable(rows: string[][]) {
     const columnsWidth = rows[0].map(cell => cell.length);
     rows.forEach(row => row.forEach((cell, i) => {

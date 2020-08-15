@@ -2,7 +2,18 @@
 
 Simple HTML preprocessor for static sites. Made specificaly for a personal website of mine.
 
-## Install
+#### Table of Contents
+[Quick start](#quick%20start)
+- [Install](#install)
+- [Run](#run)
+- [Use](#use)
+[Options](#options)
+- [Configuration](#configuration)
+- [Command line](#comamndW%20line)
+
+## Quick start
+
+### Install
 
 Copybara runs on [Deno](https://deno.land/).
 
@@ -11,7 +22,7 @@ Copybara runs on [Deno](https://deno.land/).
 deno install --allow-read --allow-write https://deno.land/x/copybara/copybara.ts
 ```
 
-## Run
+### Run
 
 ```bash
 # run with default arguments
@@ -24,7 +35,7 @@ copybara.cmd -i src/template.html -o build/
 copybara.cmd -h
 ```
 
-## Use
+### Use
 
 Copybara wraps HTML files with other HTML files. Let's call them _content files_ and _templates_.
 
@@ -122,12 +133,36 @@ The generated `public/subpages/article.html` file contains the following:
 The `subpages/article.html` file has been wrapped by `template.html` in place of the `<!-- !cb-wrap subpages -->` command. Also, the `title` parameter declaration has been replaced by the `title` value set in the content file.
 The same has happened to all other files inside the `subpages` directory.
 
-## Command line
+## Options
+
+Options for Copybara can be specified either in a configuration file or in a command line. 
+Command line options will take presedence over the configuration.
+The order is therefore:
+- default options
+- configuration file options
+- command line options
+
+### Configuration
+
+The configuration is stored in an [INI](https://en.wikipedia.org/wiki/INI_file) file. By default, Copybara looks for a `copybara.ini` file. If it doesn't exist, no configuration file is used. Custom file can be used by using the `--config` option.
+
+An example config file:
+
+```ini
+input=./main.html
+out=./dist
+verbose=yes ; in case of flags (boolean options) setting them to any value will set them to 'true'
+```
+
+All configuration options match the command line options listed in the table below. Because of that no configuration file is needed and all options can be passed via the command line.
+
+### Command line
 
 The following command line options are available:
 
 Option | Alias | Default | Description
 --- | --- | --- | ---
+--config | -c | ./copybara.ini | The configuration file
 --input | -i | ./src/template.html | The file to start processing from (the main template)
 --out | -o | ./out | The folder in which to put the processed files
 --verbose | n/a | n/a | Logs more detailed information. Helpful for debugging
