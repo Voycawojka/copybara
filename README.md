@@ -1,5 +1,7 @@
 # Copybara
 
+![Copybara](logo.png)
+
 Simple HTML preprocessor for static sites. Made specificaly for a personal website of mine.
 
 #### Table of Contents
@@ -154,7 +156,7 @@ outputPath=./dist
 verbose=yes ; in case of flags (boolean options) setting them to any value will set them to 'true'
 ```
 
-All configuration options have command line counterpats (listed in the table below). 
+All configuration options have command line counterparts (listed in the table below). 
 Because of that no configuration file is needed and all options can be passed via the command line.
 
 ### Command line
