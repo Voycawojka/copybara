@@ -1,10 +1,10 @@
-import { Style, printLine, printWarning, printTable } from "./src/cli_printer.ts";
-import { crawl, crawlSingle } from "./src/content_crawler.ts";
+import { Style, printLine, printTable } from "./src/cli_printer.ts";
 import { handleErrors } from "./src/error_handler.ts";
-import { getFilesInDir, getFileContent, CopybaraFsAccessError } from "./src/fs_accessor.ts";
+import { CopybaraFsAccessError, getFileContent } from "./src/fs_accessor.ts";
 import { readConfigFile } from "./src/conf_reader.ts";
 import { processCliArgs, CliOption } from "./src/args_parser.ts";
 import { Options } from "./src/options.ts";
+import { parseAsTemplate } from "./src/file_processor.ts";
 
 function getSupportedFlags(options: Options): CliOption[] {
     const supported = [
@@ -84,68 +84,6 @@ function getSupportedFlags(options: Options): CliOption[] {
     return supported;
 }
 
-interface ParamDec {
-    name: string,
-    command: string,
-}
-
-interface ParamSetter {
-    param: string,
-    value: string,
-}
-
-interface ParsedFile {
-    path: string,
-    content: string,
-}
-
-async function parseFile(inputFolder: string, path: string, options: Options): Promise<ParsedFile[]> {
-    options.verbose && printLine(`Processing ${path}...`);
-
-    const file = getFileContent(path);
-
-    const paramDecs: ParamDec[] = crawl(file, /<!-- *!cb-param *(\S+) *-->/g)
-        .map(({ command, groups }) => ({ name: groups[0], command }));
-
-    const parsedFiles: ParsedFile[] = [];
-    const wrapCommand = crawlSingle(file, /<!-- *!cb-wrap *(\S+) *-->/g);
-
-    if (wrapCommand) {
-        const relativePath = wrapCommand.groups[0];
-        const absolutePath = `${inputFolder}/${relativePath}`;
-
-        options.verbose && printLine(`Reading files from ${absolutePath}`);
-        for (const contentFile of getFilesInDir(absolutePath)) {
-            const wrappedPath = `${absolutePath}/${contentFile}`;
-
-            options.verbose && printLine(`Wrapping ${wrappedPath}`);
-            const wrappedContent = getFileContent(wrappedPath);
-
-            const paramSetters: ParamSetter[] = crawl(wrappedContent, /<!-- *!cb-param *(\S+) +"(.*)" *-->/g)
-                .map(({ groups }) => ({ param: groups[0], value: groups[1] }));
-
-            let content = file.slice(0, wrapCommand.indexBefore) + wrappedContent + file.slice(wrapCommand.indexAfter);
-            for (const paramSetter of paramSetters) {
-                const thisParamDecs = paramDecs.filter(dec => dec.name === paramSetter.param);
-
-                if (thisParamDecs.length === 0) {
-                    printWarning(`parameter '${paramSetter.param}' is set in the content file (${wrappedPath}) but not declared in the template (${path}).`);
-                    continue;
-                }
-
-                thisParamDecs.forEach(paramDec => content = content.replace(paramDec.command, paramSetter.value));
-            }
-
-            parsedFiles.push({
-                path: `${relativePath}/${contentFile}`,
-                content,
-            });
-        }
-    }
-
-    return Promise.resolve(parsedFiles);
-}
-
 async function run(): Promise<void> {
     const options = new Options();
     const supportedFlags = getSupportedFlags(options);
@@ -163,8 +101,9 @@ async function run(): Promise<void> {
         }
 
         const inputFolder = options.inputFile.substring(0, options.inputFile.lastIndexOf("/"));
+        const mainTemplate = getFileContent(options.inputFile);
 
-        for (const parsedFile of await parseFile(inputFolder, options.inputFile, options)) {
+        for (const parsedFile of await parseAsTemplate(mainTemplate, inputFolder, options.verbose)) {
             const dirPath = `${options.outputPath}/${parsedFile.path.slice(0, parsedFile.path.lastIndexOf("/"))}`;
 
             options.verbose && printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);
