@@ -34,14 +34,6 @@ export async function parseAsTemplate(content: string, templateDirLocation: stri
             verbose && printLine(`Wrapping ${contentFileLocation}`);
             const contentFile = getFileContent(contentFileLocation);
 
-            const contentFiles = await parseAsTemplate(contentFile, contentDirLocation, verbose);
-            if (contentFiles.length > 0) {
-                for (const f of contentFiles) {
-                    parsedFiles.push(f);
-                }
-                continue;
-            }
-
             const paramSetters: ParamSetter[] = crawl(contentFile, /<!-- *!cb-param *(\S+) +"(.*)" *-->/g)
                 .map(({ groups }) => ({ param: groups[0], value: groups[1] }));
 
