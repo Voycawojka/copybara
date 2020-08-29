@@ -1,5 +1,4 @@
 import { getFileContent } from "./fs_accessor.ts";
-import { printWarning } from "./cli_printer.ts";
 import { CopybaraError } from "./error_handler.ts";
 
 function* characterIterator(text: string) {
@@ -21,9 +20,11 @@ function readCharactersUpTo(characters: Generator<string>, endChar: string, thro
     return text;
 }
 
-function parseIni(content: string): Map<string, string> {
-    const map = new Map<string, string>();
+function parseIni(content: string): Map<string, string>[] {
+    const sections: Map<string, string>[] = [];
     const characters = characterIterator(content);
+
+    let currentSection = new Map<string, string>()
 
     let char = characters.next();
     while(!char.done) {
@@ -33,7 +34,10 @@ function parseIni(content: string): Map<string, string> {
                 break;
             case "[":
                 const section = readCharactersUpTo(characters, "]", true);
-                printWarning(`found section declaration '${section}' in the configuration file but sections are not used by Copybara. Ignoring it.`);
+
+                sections.push(currentSection);
+                currentSection = new Map<string, string>();
+
                 break;
             case "\n":
                 break;
@@ -41,7 +45,7 @@ function parseIni(content: string): Map<string, string> {
                 const key = (char.value + readCharactersUpTo(characters, "=", true)).trimStart();
                 const value = readCharactersUpTo(characters, "\n", false).trimEnd();
 
-                map.set(key, value);
+                currentSection.set(key, value);
 
                 break;
         }
@@ -49,10 +53,12 @@ function parseIni(content: string): Map<string, string> {
         char = characters.next();
     }
 
-    return map;
+    sections.push(currentSection);
+    
+    return sections.filter(section => section.size > 0)
 }
 
-export function readConfigFile(path: string): Map<string, string> {
+export function readConfigFile(path: string): Map<string, string>[] {
     const content = getFileContent(path);
     return parseIni(content);
 }

@@ -159,6 +159,21 @@ verbose=yes ; in case of flags (boolean options) setting them to any value will 
 All configuration options have command line counterparts (listed in the table below). 
 Because of that no configuration file is needed and all options can be passed via the command line.
 
+By using sections in the config file you can specify multiple executions of Copybara:
+
+```ini
+[parse main]
+inputFile=./main.html
+outputPath=./dist
+[parse blog posts]
+inputFile=./post-template.html
+outputPath=./dist
+verbose=yes
+```
+
+In this example Copybara will run twice. First for the `main.html` template and then for the `post-template.html` template. Only the second execution will be verbose.
+This makes it easy to have more than one template on your website.
+
 ### Command line
 
 The following command line options are available. The _INI_ column specifies the configuration file counterparts.

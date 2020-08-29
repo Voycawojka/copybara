@@ -22,4 +22,15 @@ export class Options {
             }
         }
     }
+
+    public clone(): Options {
+        const cloned = new Options() as any
+        const looseThis = this as any
+
+        for (const prop of Object.getOwnPropertyNames(this)) {
+            cloned[prop] = looseThis[prop]
+        }
+
+        return cloned;
+    }
 }

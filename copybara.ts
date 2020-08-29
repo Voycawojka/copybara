@@ -95,13 +95,25 @@ function getSupportedFlags(options: Options): CliOption[] {
 }
 
 async function run(): Promise<void> {
-    const options = new Options();
-    const supportedFlags = getSupportedFlags(options);
+    const cliOptions = new Options();
+    const supportedFlags = getSupportedFlags(cliOptions);
+    const executionsOptions: Options[] = []
 
     if (processCliArgs(supportedFlags)) {
         try {
-            const configOptions = readConfigFile(options.configFile);
-            options.overrideDefaultsWithConfig(configOptions);
+            const sectionsOptions = readConfigFile(cliOptions.configFile);
+
+            if (sectionsOptions.length === 1) {
+                cliOptions.overrideDefaultsWithConfig(sectionsOptions[0]);
+                executionsOptions.push(cliOptions);
+            } else if (sectionsOptions.length > 1) {
+                sectionsOptions.forEach(section => {
+                    const sectionOptions = cliOptions.clone()
+                    
+                    sectionOptions.overrideDefaultsWithConfig(section)
+                    executionsOptions.push(sectionOptions)
+                })
+            }
         } catch (error) {
             if (error instanceof CopybaraFsAccessError) {
                 printLine(`Configuration file '${error.path}' not found or cannot be accessed. Ignoring it.`);
@@ -110,26 +122,28 @@ async function run(): Promise<void> {
             }
         }
 
-        const inputFolder = options.inputFile.substring(0, options.inputFile.lastIndexOf("/"));
-        const mainTemplate = getFileContent(options.inputFile);
-        const contentFilesJson = []
+        for (const options of executionsOptions) {
+            const inputFolder = options.inputFile.substring(0, options.inputFile.lastIndexOf("/"));
+            const mainTemplate = getFileContent(options.inputFile);
+            const contentFilesJson = []
 
-        for (const parsedFile of await parseAsTemplate(mainTemplate, inputFolder, options.verbose)) {
-            const dirPath = `${options.outputPath}/${parsedFile.path.slice(0, parsedFile.path.lastIndexOf("/"))}`;
+            for (const parsedFile of await parseAsTemplate(mainTemplate, inputFolder, options.verbose)) {
+                const dirPath = `${options.outputPath}/${parsedFile.path.slice(0, parsedFile.path.lastIndexOf("/"))}`;
 
-            options.verbose && printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);
+                options.verbose && printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);
 
-            contentFilesJson.push({
-                path: `${options.outputPath}/${parsedFile.path}`,
-                parameters: parsedFile.paramSetters 
-            })
+                contentFilesJson.push({
+                    path: `${options.outputPath}/${parsedFile.path}`,
+                    parameters: parsedFile.paramSetters 
+                })
 
-            await Deno.mkdir(dirPath, { recursive: true });
-            Deno.writeTextFile(`${options.outputPath}/${parsedFile.path}`, parsedFile.content, { create: true });
-        }
+                await Deno.mkdir(dirPath, { recursive: true });
+                Deno.writeTextFile(`${options.outputPath}/${parsedFile.path}`, parsedFile.content, { create: true });
+            }
 
-        if (options.produceJson) {
-            Deno.writeTextFile(`${options.outputPath}/test.json`, JSON.stringify(contentFilesJson), { create: true });
+            if (options.produceJson) {
+                Deno.writeTextFile(`${options.outputPath}/test.json`, JSON.stringify(contentFilesJson), { create: true });
+            }
         }
 
         printLine("Done!", Style.success);
