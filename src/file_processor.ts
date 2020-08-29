@@ -15,6 +15,7 @@ interface ParamSetter {
 interface FileToCreate {
     path: string,
     content: string,
+    paramSetters: ParamSetter[],
 }
 
 export async function parseAsTemplate(content: string, templateDirLocation: string, verbose: boolean): Promise<FileToCreate[]> {
@@ -32,6 +33,14 @@ export async function parseAsTemplate(content: string, templateDirLocation: stri
 
             verbose && printLine(`Wrapping ${contentFileLocation}`);
             const contentFile = getFileContent(contentFileLocation);
+
+            const contentFiles = await parseAsTemplate(contentFile, contentDirLocation, verbose);
+            if (contentFiles.length > 0) {
+                for (const f of contentFiles) {
+                    parsedFiles.push(f);
+                }
+                continue;
+            }
 
             const paramSetters: ParamSetter[] = crawl(contentFile, /<!-- *!cb-param *(\S+) +"(.*)" *-->/g)
                 .map(({ groups }) => ({ param: groups[0], value: groups[1] }));
@@ -51,6 +60,7 @@ export async function parseAsTemplate(content: string, templateDirLocation: stri
             parsedFiles.push({
                 path: contentFileLocation,
                 content: parsedContent,
+                paramSetters,
             });
         }
     }

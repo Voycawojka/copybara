@@ -168,6 +168,7 @@ Option | Alias | INI | Default | Description
 --config | -c | n/a | ./copybara.ini | The configuration file
 --input | -i | inputFile | ./src/template.html | The file to start processing from (the main template)
 --out | -o | outputPath | ./out | The folder in which to put the processed files
---verbose | n/a | verbose | n/a | Logs more detailed information. Helpful for debugging
+--verbose | n/a | verbose | n/a | If present, logs more detailed information. Helpful for debugging
+--json | -j | produceJson | n/a | If present, saves all content files in a json file. Useful as input for APIs. 
 --help | -h | n/a | n/a | Displays the list of commands
 --version | -v | n/a | n/a | Displays the used version

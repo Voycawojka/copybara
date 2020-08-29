@@ -49,6 +49,16 @@ function getSupportedFlags(options: Options): CliOption[] {
             },
         },
         {
+            name: "json",
+            short: "j",
+            params: 0,
+            description: "Causes the parser to save all content files in a json file",
+            action: ([]) => {
+                options.produceJson = true;
+                return true;
+            }
+        },
+        {
             name: "help",
             short: "h",
             params: 0,
@@ -75,7 +85,7 @@ function getSupportedFlags(options: Options): CliOption[] {
             params: 0,
             description: 'Displays the version of the used build',
             action: ([]) => {
-                printLine("0.0.3");
+                printLine("0.0.4");
                 return false;
             }
         }
@@ -102,14 +112,24 @@ async function run(): Promise<void> {
 
         const inputFolder = options.inputFile.substring(0, options.inputFile.lastIndexOf("/"));
         const mainTemplate = getFileContent(options.inputFile);
+        const contentFilesJson = []
 
         for (const parsedFile of await parseAsTemplate(mainTemplate, inputFolder, options.verbose)) {
             const dirPath = `${options.outputPath}/${parsedFile.path.slice(0, parsedFile.path.lastIndexOf("/"))}`;
 
             options.verbose && printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);
 
+            contentFilesJson.push({
+                path: `${options.outputPath}/${parsedFile.path}`,
+                parameters: parsedFile.paramSetters 
+            })
+
             await Deno.mkdir(dirPath, { recursive: true });
             Deno.writeTextFile(`${options.outputPath}/${parsedFile.path}`, parsedFile.content, { create: true });
+        }
+
+        if (options.produceJson) {
+            Deno.writeTextFile(`${options.outputPath}/test.json`, JSON.stringify(contentFilesJson), { create: true });
         }
 
         printLine("Done!", Style.success);

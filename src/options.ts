@@ -6,6 +6,7 @@ export class Options {
     public inputFile = "./src/template.html";
     public outputPath = "./out";
     public verbose = false;
+    public produceJson = false;
 
     public overrideDefaultsWithConfig(configOpts: Map<string, string>) {
         const defaultOptions: any = new Options();
