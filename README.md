@@ -135,6 +135,9 @@ The generated `public/subpages/article.html` file contains the following:
 The `subpages/article.html` file has been wrapped by `template.html` in place of the `<!-- !cb-wrap subpages -->` command. Also, the `title` parameter declaration has been replaced by the `title` value set in the content file.
 The same has happened to all other files inside the `subpages` directory.
 
+There is also one more command: `!cb-each`. It's used to put lists of content files on your website. 
+TODO: explain the `!cb-each` command.
+
 ## Options
 
 Options for Copybara can be specified either in a configuration file or in a command line. 
@@ -172,7 +175,7 @@ verbose=yes
 ```
 
 In this example Copybara will run twice. First for the `main.html` template and then for the `post-template.html` template. Only the second execution will be verbose.
-This makes it easy to have more than one template on your website.
+This makes it easy to have more than one template on your website. If some CLI arguments are also specified they are merged with options for every section individually.
 
 ### Command line
 

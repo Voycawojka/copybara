@@ -20,11 +20,19 @@ function readCharactersUpTo(characters: Generator<string>, endChar: string, thro
     return text;
 }
 
-function parseIni(content: string): Map<string, string>[] {
-    const sections: Map<string, string>[] = [];
+export interface Section {
+    name: string | null,
+    options: Map<string, string>,
+}
+
+function parseIni(content: string): Section[] {
+    const sections: Section[] = [];
     const characters = characterIterator(content);
 
-    let currentSection = new Map<string, string>()
+    let currentSection: Section = {
+        name: null,
+        options: new Map<string, string>()
+    };
 
     let char = characters.next();
     while(!char.done) {
@@ -36,7 +44,10 @@ function parseIni(content: string): Map<string, string>[] {
                 const section = readCharactersUpTo(characters, "]", true);
 
                 sections.push(currentSection);
-                currentSection = new Map<string, string>();
+                currentSection = {
+                    name: section,
+                    options: new Map<string, string>(),
+                };
 
                 break;
             case "\n":
@@ -45,7 +56,7 @@ function parseIni(content: string): Map<string, string>[] {
                 const key = (char.value + readCharactersUpTo(characters, "=", true)).trimStart();
                 const value = readCharactersUpTo(characters, "\n", false).trimEnd();
 
-                currentSection.set(key, value);
+                currentSection.options.set(key, value);
 
                 break;
         }
@@ -55,10 +66,10 @@ function parseIni(content: string): Map<string, string>[] {
 
     sections.push(currentSection);
     
-    return sections.filter(section => section.size > 0)
+    return sections.filter(section => section.options.size > 0)
 }
 
-export function readConfigFile(path: string): Map<string, string>[] {
+export function readConfigFile(path: string): Section[] {
     const content = getFileContent(path);
     return parseIni(content);
 }

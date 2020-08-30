@@ -7,9 +7,15 @@ interface ParamDeclaration {
     command: string,
 }
 
-interface ParamSetter {
+export interface ParamSetter {
     param: string,
     value: string,
+}
+
+interface EachDeclaration {
+    section: string,
+    templatePath: string,
+    command: string,
 }
 
 interface FileToCreate {
@@ -18,11 +24,64 @@ interface FileToCreate {
     paramSetters: ParamSetter[],
 }
 
-export async function parseAsTemplate(content: string, templateDirLocation: string, verbose: boolean): Promise<FileToCreate[]> {
-    const paramDecs: ParamDeclaration[] = crawl(content, /<!-- *!cb-param *(\S+) *-->/g).map(({ command, groups }) => ({ name: groups[0], command }));
-    const wrapCommand = crawlSingle(content, /<!-- *!cb-wrap *(\S+) *-->/g);
+export interface JsonContentFile {
+    path: string,
+    parameters: ParamSetter[]
+}
 
+function findParamDeclarations(text: string): ParamDeclaration[] {
+    return crawl(text, /<!-- *!cb-param +(\S+) *-->/g)
+        .map(({ command, groups }) => ({ name: groups[0], command }));
+}
+
+function findEachCommands(text: string): EachDeclaration[] {
+    return crawl(text, /<!-- *!cb-each +"(.*)" +(.*) *-->/g)
+        .map(({ command, groups }) => ({ section: groups[0], templatePath: groups[1], command }));
+}
+
+function putValuesForParamDeclarations(text: string, paramSetters: ParamSetter[]): string {
+    const paramDecs = findParamDeclarations(text);
+    let parsedText = text;
+    
+    for (const paramSetter of paramSetters) {
+        const thisParamDecs = paramDecs.filter(dec => dec.name === paramSetter.param);
+
+        if (thisParamDecs.length === 0) {
+            continue;
+        }
+
+        thisParamDecs.forEach(paramDec => parsedText = parsedText.replace(paramDec.command, paramSetter.value));
+    }
+
+    return parsedText;
+}
+
+function parseEachCommands(text: string, templateDirLocation: string, contentFilesJsons: Map<string, JsonContentFile[]>, verbose: boolean): string {
+    let parsedText = text;
+
+    findEachCommands(text).forEach(eachCommand => {
+        verbose && printLine(`Reading template ${templateDirLocation}/${eachCommand.templatePath}`);
+        const eachContent = getFileContent(`${templateDirLocation}/${eachCommand.templatePath}`);
+        
+        const sectionJson = contentFilesJsons.get(eachCommand.section);
+
+        if (sectionJson) {
+            const parsedEachContents = sectionJson.map(contentFile => putValuesForParamDeclarations(eachContent, [...contentFile.parameters, { param: "_cb_path", value: contentFile.path }]));
+            parsedText = parsedText.replace(eachCommand.command, parsedEachContents.join("\n"));
+        } else {
+            printWarning(`Template declares 'each' command for section '${eachCommand.section}' but this section is not found. It either doesn't exist or the sections are in the wrong order in the config file.`);
+        }
+    });
+
+    return parsedText;
+}
+
+export async function parseAsTemplate(content: string, templateDirLocation: string, contentFilesJsons: Map<string, JsonContentFile[]>, verbose: boolean): Promise<FileToCreate[]> {
     const parsedFiles: FileToCreate[] = [];
+
+    content = parseEachCommands(content, templateDirLocation, contentFilesJsons, verbose);
+
+    const wrapCommand = crawlSingle(content, /<!-- *!cb-wrap +(\S+) *-->/g);
 
     if (wrapCommand) {
         const contentDirLocation = `${templateDirLocation}/${wrapCommand.groups[0]}`;
@@ -34,24 +93,16 @@ export async function parseAsTemplate(content: string, templateDirLocation: stri
             verbose && printLine(`Wrapping ${contentFileLocation}`);
             const contentFile = getFileContent(contentFileLocation);
 
-            const paramSetters: ParamSetter[] = crawl(contentFile, /<!-- *!cb-param *(\S+) +"(.*)" *-->/g)
+            const paramSetters: ParamSetter[] = crawl(contentFile, /<!-- *!cb-param +(\S+) +"(.*)" *-->/g)
                 .map(({ groups }) => ({ param: groups[0], value: groups[1] }));
 
-            let parsedContent = content.slice(0, wrapCommand.indexBefore) + contentFile + content.slice(wrapCommand.indexAfter);
-            for (const paramSetter of paramSetters) {
-                const thisParamDecs = paramDecs.filter(dec => dec.name === paramSetter.param);
-
-                if (thisParamDecs.length === 0) {
-                    printWarning(`parameter '${paramSetter.param}' is set in the content file (${contentFileLocation}) but not declared in the template.`);
-                    continue;
-                }
-
-                thisParamDecs.forEach(paramDec => parsedContent = parsedContent.replace(paramDec.command, paramSetter.value));
-            }
-
+            const wrappedContent = content.slice(0, wrapCommand.indexBefore) + contentFile + content.slice(wrapCommand.indexAfter);
+            const contentWithParams = putValuesForParamDeclarations(wrappedContent, paramSetters);
+            const eachedContent = parseEachCommands(contentWithParams, templateDirLocation, contentFilesJsons, verbose);
+           
             parsedFiles.push({
                 path: contentFileLocation,
-                content: parsedContent,
+                content: eachedContent,
                 paramSetters,
             });
         }

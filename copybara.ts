@@ -4,7 +4,7 @@ import { CopybaraFsAccessError, getFileContent } from "./src/fs_accessor.ts";
 import { readConfigFile } from "./src/conf_reader.ts";
 import { processCliArgs, CliOption } from "./src/args_parser.ts";
 import { Options } from "./src/options.ts";
-import { parseAsTemplate } from "./src/file_processor.ts";
+import { parseAsTemplate, ParamSetter, JsonContentFile } from "./src/file_processor.ts";
 
 function getSupportedFlags(options: Options): CliOption[] {
     const supported = [
@@ -94,24 +94,35 @@ function getSupportedFlags(options: Options): CliOption[] {
     return supported;
 }
 
+interface Execution {
+    name: string | null,
+    options: Options,
+}
+
 async function run(): Promise<void> {
     const cliOptions = new Options();
     const supportedFlags = getSupportedFlags(cliOptions);
-    const executionsOptions: Options[] = []
+    const executions: Execution[] = []
 
     if (processCliArgs(supportedFlags)) {
         try {
-            const sectionsOptions = readConfigFile(cliOptions.configFile);
+            const sections = readConfigFile(cliOptions.configFile);
 
-            if (sectionsOptions.length === 1) {
-                cliOptions.overrideDefaultsWithConfig(sectionsOptions[0]);
-                executionsOptions.push(cliOptions);
-            } else if (sectionsOptions.length > 1) {
-                sectionsOptions.forEach(section => {
+            if (sections.length === 1) {
+                cliOptions.overrideDefaultsWithConfig(sections[0].options);
+                executions.push({
+                    name: sections[0].name,
+                    options: cliOptions,
+                });
+            } else if (sections.length > 1) {
+                sections.forEach(section => {
                     const sectionOptions = cliOptions.clone()
                     
-                    sectionOptions.overrideDefaultsWithConfig(section)
-                    executionsOptions.push(sectionOptions)
+                    sectionOptions.overrideDefaultsWithConfig(section.options)
+                    executions.push({
+                        name: section.name,
+                        options: sectionOptions,
+                    });
                 })
             }
         } catch (error) {
@@ -122,12 +133,18 @@ async function run(): Promise<void> {
             }
         }
 
-        for (const options of executionsOptions) {
+        const executionsContentFiles = new Map<string, JsonContentFile[]>();
+
+        for (const execution of executions) {
+            const options = execution.options;
+            
+            options.verbose && !!execution.name && printLine(`Running execution '${execution.name}'`)
+            
             const inputFolder = options.inputFile.substring(0, options.inputFile.lastIndexOf("/"));
             const mainTemplate = getFileContent(options.inputFile);
-            const contentFilesJson = []
+            const contentFilesJson: JsonContentFile[] = []
 
-            for (const parsedFile of await parseAsTemplate(mainTemplate, inputFolder, options.verbose)) {
+            for (const parsedFile of await parseAsTemplate(mainTemplate, inputFolder, executionsContentFiles, options.verbose)) {
                 const dirPath = `${options.outputPath}/${parsedFile.path.slice(0, parsedFile.path.lastIndexOf("/"))}`;
 
                 options.verbose && printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);
@@ -139,6 +156,10 @@ async function run(): Promise<void> {
 
                 await Deno.mkdir(dirPath, { recursive: true });
                 Deno.writeTextFile(`${options.outputPath}/${parsedFile.path}`, parsedFile.content, { create: true });
+            }
+
+            if (execution.name) {
+                executionsContentFiles.set(execution.name, contentFilesJson);
             }
 
             if (options.produceJson) {
