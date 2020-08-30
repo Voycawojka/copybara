@@ -76,7 +76,7 @@ function parseEachCommands(text: string, templateDirLocation: string, contentFil
     return parsedText;
 }
 
-export async function parseAsTemplate(content: string, templateDirLocation: string, contentFilesJsons: Map<string, JsonContentFile[]>, verbose: boolean): Promise<FileToCreate[]> {
+export async function parseAsTemplate(content: string, templateDirLocation: string, contentFilesJsons: Map<string, JsonContentFile[]>, executionName: string | null, verbose: boolean): Promise<FileToCreate[]> {
     const parsedFiles: FileToCreate[] = [];
 
     content = parseEachCommands(content, templateDirLocation, contentFilesJsons, verbose);
@@ -106,6 +106,12 @@ export async function parseAsTemplate(content: string, templateDirLocation: stri
                 paramSetters,
             });
         }
+    } else {
+        parsedFiles.push({
+            path: `${templateDirLocation}/${executionName ?? "undefined"}.html`,
+            content,
+            paramSetters: [],
+        });
     }
 
     return Promise.resolve(parsedFiles);

@@ -144,7 +144,7 @@ async function run(): Promise<void> {
             const mainTemplate = getFileContent(options.inputFile);
             const contentFilesJson: JsonContentFile[] = []
 
-            for (const parsedFile of await parseAsTemplate(mainTemplate, inputFolder, executionsContentFiles, options.verbose)) {
+            for (const parsedFile of await parseAsTemplate(mainTemplate, inputFolder, executionsContentFiles, execution.name, options.verbose)) {
                 const dirPath = `${options.outputPath}/${parsedFile.path.slice(0, parsedFile.path.lastIndexOf("/"))}`;
 
                 options.verbose && printLine(`Saving ${options.outputPath}/${parsedFile.path}...`);
@@ -163,7 +163,8 @@ async function run(): Promise<void> {
             }
 
             if (options.produceJson) {
-                Deno.writeTextFile(`${options.outputPath}/test.json`, JSON.stringify(contentFilesJson), { create: true });
+
+                Deno.writeTextFile(`${options.outputPath}/${execution.name}.json`, JSON.stringify(contentFilesJson), { create: true });
             }
         }
 
