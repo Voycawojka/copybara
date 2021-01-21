@@ -15,6 +15,7 @@ export interface ParamSetter {
 interface EachDeclaration {
     section: string,
     templatePath: string,
+    options: any,
     command: string,
 }
 
@@ -35,8 +36,13 @@ function findParamDeclarations(text: string): ParamDeclaration[] {
 }
 
 function findEachCommands(text: string): EachDeclaration[] {
-    return crawl(text, /<!-- *!cb-each +"(.*)" +(.*) *-->/g)
-        .map(({ command, groups }) => ({ section: groups[0], templatePath: groups[1], command }));
+    return crawl(text, /<!-- *!cb-each +"(.*)" +(.*) +{(.*)} *-->/g)
+        .map(({ command, groups }) => ({ 
+            section: groups[0], 
+            templatePath: groups[1], 
+            options: JSON.parse(`{${groups[2]}}`), 
+            command 
+    }));
 }
 
 function putValuesForParamDeclarations(text: string, paramSetters: ParamSetter[]): string {
@@ -66,7 +72,14 @@ function parseEachCommands(text: string, templateDirLocation: string, contentFil
         const sectionJson = contentFilesJsons.get(eachCommand.section);
 
         if (sectionJson) {
-            const parsedEachContents = sectionJson.map(contentFile => putValuesForParamDeclarations(eachContent, [...contentFile.parameters, { param: "_cb_path", value: contentFile.path }]));
+            const sortBy = eachCommand.options.sortBy
+            const parsedEachContents = sectionJson
+                .sort((a, b) => !!sortBy ? (b.parameters.find(p => p.param === sortBy)?.value ?? '').localeCompare(a.parameters.find(p => p.param === sortBy)?.value ?? '') : 1)
+                .map(contentFile => putValuesForParamDeclarations(eachContent, [
+                    ...contentFile.parameters, 
+                    { param: "_cb_path", value: normalizePath(contentFile.path) }
+                ]));
+
             parsedText = parsedText.replace(eachCommand.command, parsedEachContents.join("\n"));
         } else {
             printWarning(`Template declares 'each' command for section '${eachCommand.section}' but this section is not found. It either doesn't exist or the sections are in the wrong order in the config file.`);
@@ -74,6 +87,10 @@ function parseEachCommands(text: string, templateDirLocation: string, contentFil
     });
 
     return parsedText;
+}
+
+function normalizePath(path: string): string {
+    return path.replaceAll("//", "/").replaceAll("./", "")
 }
 
 export async function parseAsTemplate(content: string, templateDirLocation: string, contentFilesJsons: Map<string, JsonContentFile[]>, executionName: string | null, verbose: boolean): Promise<FileToCreate[]> {
@@ -101,14 +118,14 @@ export async function parseAsTemplate(content: string, templateDirLocation: stri
             const eachedContent = parseEachCommands(contentWithParams, templateDirLocation, contentFilesJsons, verbose);
            
             parsedFiles.push({
-                path: contentFileLocation,
+                path: `${wrapCommand.groups[0]}/${contentFileName}`,
                 content: eachedContent,
                 paramSetters,
             });
         }
     } else {
         parsedFiles.push({
-            path: `${templateDirLocation}/${executionName ?? "undefined"}.html`,
+            path: `${executionName ?? "undefined"}.html`,
             content,
             paramSetters: [],
         });

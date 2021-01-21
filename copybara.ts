@@ -85,7 +85,7 @@ function getSupportedFlags(options: Options): CliOption[] {
             params: 0,
             description: 'Displays the version of the used build',
             action: ([]) => {
-                printLine("0.0.5");
+                printLine("0.0.6");
                 return false;
             }
         }
